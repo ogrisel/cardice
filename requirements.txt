@@ -1,0 +1,2 @@
+salt>=0.17.0
+apache-libcloud>=0.13.2
