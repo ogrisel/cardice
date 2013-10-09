@@ -49,7 +49,7 @@ def make_parser():
         "name", help="Name of a new cluster configuration.")
 
     select_parser = subparsers.add_parser(
-        'select', help="Mark the ",
+        'select', help="Mark the requested cluster as the default cluster.",
         parents=[common_parser],
     )
     select_parser.set_defaults(command='select')
