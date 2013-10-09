@@ -61,7 +61,8 @@ def setup_package():
         version=VERSION,
         download_url=DOWNLOAD_URL,
         #long_description=LONG_DESCRIPTION,
-        packages=['cardice'],
+        packages=['cardice', 'cardice.templates'],
+        package_data={'cardice.templates': ['cardice/templates/*.yaml']},
         scripts=['scripts/cardice'],
         classifiers=[
             'Intended Audience :: Science/Research',

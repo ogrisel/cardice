@@ -5,5 +5,5 @@ __version__ = '0.1.0-git'
 
 
 if __name__ == '__main__':
-    from cardice.cli import main
+    from cardice.commandline import main
     main()

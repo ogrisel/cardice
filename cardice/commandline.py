@@ -1,6 +1,9 @@
 import argparse
 import sys
 
+from cardice.config import Configurator
+
+
 USAGE = """cardice command [options...]"""
 
 
@@ -45,6 +48,15 @@ def make_parser():
     init_parser.add_argument(
         "name", help="Name of a new cluster configuration.")
 
+    select_parser = subparsers.add_parser(
+        'select', help="Mark the ",
+        parents=[common_parser],
+    )
+    select_parser.set_defaults(command='select')
+    select_parser.add_argument(
+        "name", help="Name of the cluster configuration to select"
+                     " as default cluster.")
+
     start_parser = subparsers.add_parser(
         'start', help="Start the selected cluster configuration.",
         parents=[common_parser],
@@ -72,18 +84,23 @@ class CommandHandler(object):
 
     def __init__(self, options):
         self.options = options
-        # TODO: check or initialize the cardice config folder
-        # TODO: configure the logger
+        self.config = Configurator(options)
 
     def run(self):
         """Execute the specified command parameterized by CLI options"""
-        getattr(self, 'run_' + self.options.command)
+        getattr(self, 'run_' + self.options.command)()
 
-    def interrupt(self, cmd, options):
+    def interrupt(self):
         """Perform clean up operations on user interuptions (if any)"""
-        handler = getattr(self, 'interrupt_' + cmd, None)
+        handler = getattr(self, 'interrupt_' + self.options.command, None)
         if handler is not None:
-            return handler(options)
+            return handler()
+
+    def run_init(self):
+        self.config.init_cluster(self.options.name)
+
+    def run_select(self):
+        self.config.set_default_cluster(self.options.name)
 
 
 def main(args=None):
@@ -93,8 +110,15 @@ def main(args=None):
     parser = make_parser()
     options = parser.parse_args(args)
     
-    executor = CommandHandler(options)
+    handler = CommandHandler(options)
     try:
-        executor.run()
+        handler.run()
     except KeyboardInterrupt:
-        executor.interupt()
+        handler.interupt()
+    except Exception as e:
+        if options.log_level.upper() == 'DEBUG':
+            exc_info=e
+        else:
+            exc_info=None
+        handler.config.log.error(str(e), exc_info=exc_info)
+        sys.exit(1)
