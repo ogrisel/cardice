@@ -2,6 +2,7 @@ import argparse
 import sys
 
 from cardice.config import Configurator
+from cardice.provision import Provisioner
 
 
 USAGE = """cardice command [options...]"""
@@ -62,6 +63,14 @@ def make_parser():
         parents=[common_parser],
     )
     start_parser.set_defaults(command='start')
+    start_parser.add_argument(
+        "profile",
+        help="Name of the profile to use to provision new nodes.")
+    start_parser.add_argument(
+        "--n-nodes", default=1, help="Number of nodes to start.")
+    start_parser.add_argument(
+        "--name-prefix", default="node",
+        help="Prefix for the new node names.")
 
     stop_parser = subparsers.add_parser(
         'stop', help="Stop the selected cluster configuration.",
@@ -102,6 +111,12 @@ class CommandHandler(object):
     def run_select(self):
         self.config.set_default_cluster(self.options.name)
 
+    def run_start(self):
+        provisioner = Provisioner(self.config)
+        provisioner.start(self.options.profile,
+                          n_nodes=self.options.n_nodes,
+                          name_prefix=self.options.name_prefix)
+
 
 def main(args=None):
     if args is None:
@@ -117,8 +132,7 @@ def main(args=None):
         handler.interupt()
     except Exception as e:
         if options.log_level.upper() == 'DEBUG':
-            exc_info=e
+            raise
         else:
-            exc_info=None
-        handler.config.log.error(str(e), exc_info=exc_info)
-        sys.exit(1)
+            handler.config.log.error(str(e))
+            sys.exit(1)

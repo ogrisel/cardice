@@ -1,10 +1,16 @@
 import os
 import re
-import pyaml
+import yaml
 import logging
+import shutil
+
+from cardice import templates
 
 
 LOGGING_FORMAT = "[%(cluster)s] %(message)s"
+
+
+TEMPLATE_FOLDER = templates.__path__[0]
 
 
 class Configurator(object):
@@ -27,6 +33,9 @@ class Configurator(object):
 			options.cardice_folder))
 		if not os.path.exists(config_folder):
 			os.makedirs(config_folder)
+			shutil.copyfile(
+				os.path.join(TEMPLATE_FOLDER, 'default_profiles.yaml'),
+				os.path.join(config_folder, 'profiles.yaml'))
 
 		self.config_folder = config_folder
 		self.log = self.get_logger()
@@ -60,8 +69,6 @@ class Configurator(object):
 
 	def set_default_cluster(self, cluster_name):
 		"""Select a specific configuration as the active cluster"""
-		active_cluster_filepath = os.path.join(
-			self.config_folder, self.default_cluster_filename)
 		if self.get_active_cluster(force_read=True) == cluster_name:
 			# Nothing to do
 			return
@@ -92,3 +99,30 @@ class Configurator(object):
 	def get_logger(self, name="cardice"):
 		return logging.LoggerAdapter(logging.getLogger(name),
 			dict(cluster=self.get_active_cluster() or '<cardice>'))
+
+	def get_profile(self, profile_name):
+		all_profiles = {}
+		cardice_profiles = os.path.join(self.config_folder, 'profiles.yaml')
+		if os.path.exists(cardice_profiles):
+			self.log.debug('reading profiles from %s', cardice_profiles)
+			with open(cardice_profiles, 'rb') as f:
+				all_profiles.update(yaml.load(f))
+
+		cluster_profiles = os.path.join(self.get_cluster_folder(), 'profiles.yaml')
+		if os.path.exists(cluster_profiles):
+			self.log.debug('reading cluster profiles from %s', cluster_profiles)
+			with open(cluster_profiles, 'rb') as f:
+				all_profiles.update(yaml.load(f))
+
+		if not all_profiles:
+			raise RuntimeError("could not find any profile definition in "
+							   + self.config_folder)
+
+		if profile_name not in all_profiles:
+			raise RuntimeError("no such profile " + profile_name)
+
+		return all_profiles[profile_name]
+
+	def register_node(self, node_spec, node):
+		# TODO: implement me: save the info in a roster compatibel file
+		pass
