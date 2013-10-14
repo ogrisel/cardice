@@ -8,7 +8,7 @@ from libcloud.compute.base import NodeState
 from concurrent.futures import ThreadPoolExecutor
 
 
-def create_node(node_spec):
+def create_node(node_spec, timeout=600):
     # The libcloud driver classes are not thread safe, hence the delayed
     # instanciation
     driver = node_spec['driver_type'](node_spec['key'], node_spec['secret'])
@@ -20,17 +20,11 @@ def create_node(node_spec):
         name=node_spec['name'],
         image=node_spec['image'],
         size=node_spec['size'])
-    while node.state != NodeState.RUNNING:
-        # TODO: check for cloud provisioning failures and maybe add a
-        # timeout here.
-        config.log.debug('waiting for %s at %s to come up...',
-                         node_name, node.public_ip)
-        sleep(5)
-        node = [n for n in driver.list_nodes()
-                if n.uuid == node.uuid][0]
 
     config.log.debug('registering %s at %s', node_name, node.public_ip)
     config.register_node(node_spec, node)
+
+    driver.wait_until_running([node], timeout=timeout)
 
     # TODO: use salt-ssh to deploy the cluster independent states maybe with
     # state.sls in parallel
@@ -48,7 +42,8 @@ class Provisioner(object):
         # TODO: use salt-ssh to ping
         return []
 
-    def start(self, profile_name, n_nodes=1, name_prefix="node"):
+    def start(self, profile_name, n_nodes=1, name_prefix="node",
+              refresh_period=20):
         """Launch new or restart stopped instances from the cluster."""
         tic = time()
 
@@ -113,13 +108,14 @@ class Provisioner(object):
         with ThreadPoolExecutor(self.max_workers) as e:
             tasks = [e.submit(create_node, spec) for spec in node_specs]
             while True:
-                sleep(10)
+                sleep(refresh_period)
                 completed = [t for t in tasks if t.done()]
                 for t in completed:
                     # Raise the exception in case of failure
                     t.result()
-                self.config.log.info("%03d/%03d node started...",
-                                     len(completed), n_nodes)
+                self.config.log.info(
+                    "waiting for nodes to start (%03d/%03d)...",
+                    len(completed), n_nodes)
                 if len(completed) == n_nodes:
                     break
 
