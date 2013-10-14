@@ -67,7 +67,8 @@ def make_parser():
         "profile",
         help="Name of the profile to use to provision new nodes.")
     start_parser.add_argument(
-        "--n-nodes", default=1, help="Number of nodes to start.")
+        "--n-nodes", default=1, type=int,
+        help="Number of nodes to start.")
     start_parser.add_argument(
         "--name-prefix", default="node",
         help="Prefix for the new node names.")
