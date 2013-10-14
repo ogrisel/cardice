@@ -1,0 +1,9 @@
+ubuntu_rackspace:
+    provider: rackspace
+    image: Ubuntu 12.04 LTS
+    size: 256 server
+
+ubuntu_aws:
+    provider: aws
+    image: ami-7e2da54e
+    size: Micro Instance
