@@ -31,15 +31,24 @@ class Configurator(object):
 		self.options = options
 		config_folder = os.path.abspath(os.path.expanduser(
 			options.cardice_folder))
+
+		first_time = False
 		if not os.path.exists(config_folder):
 			os.makedirs(config_folder)
 			shutil.copyfile(
 				os.path.join(TEMPLATE_FOLDER, 'default_profiles.yaml'),
 				os.path.join(config_folder, 'profiles.yaml'))
+			first_time = True
 
 		self.config_folder = config_folder
 		self.log = self.get_logger()
-		self.log.debug("initialized configuration in: %s", config_folder)
+		
+		if first_time:
+			self.log.debug("initialized configuration in: %s", config_folder)
+			self.init_cluster("default")
+		else:
+			self.log.debug("reading configuration from: %s", config_folder)
+
 
 	def get_cluster_folder(self):
 		"""Fetch the configuration folder path for the active cluster"""
