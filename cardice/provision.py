@@ -61,8 +61,14 @@ class Provisioner(object):
 
         # TODO: make it possible to fetch the credentials from the cluster
         # config
-        key = os.environ['CARDICE_{}_KEY'.format(provider.upper())]
-        secret = os.environ.get('CARDICE_{}_SECRET'.format(provider.upper()))
+        key_varname = 'CARDICE_{}_KEY'.format(provider.upper())
+        secret_varname = 'CARDICE_{}_SECRET'.format(provider.upper())
+        if not key_varname in os.environ:
+            raise RuntimeError(
+                "Please set credentials in environment variables"
+                " {} and {}".format(key_varname, secret_varname))
+        key = os.environ[key_varname]
+        secret = os.environ.get(secret_varname)
 
         # Check that the size and images are valid, otherwise pickup the
         # first available image and size
