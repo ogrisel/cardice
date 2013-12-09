@@ -76,6 +76,15 @@ def make_parser():
     )
     stop_parser.set_defaults(command='stop')
 
+    ssh_parser = subparsers.add_parser(
+        'ssh', help="ssh into a node of a running cluster.",
+        parents=[common_parser],
+    )
+    ssh_parser.add_argument(
+        "--node", default=None, type=int,
+        help="Name of the node to ssh into.")
+    ssh_parser.set_defaults(command='ssh')
+
     terminate_parser = subparsers.add_parser(
         'terminate', help="Stop the selected cluster configuration and free"
                           " all related cloud resources. WARNING: all unsaved"

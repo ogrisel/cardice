@@ -119,6 +119,7 @@ class Configurator(object):
             self.log.debug("generating new private key: %s", filepath)
             k = RSAKey.generate(length)
             k.write_private_key_file(filepath)
+
         return filepath, k
 
     def get_logger(self, name="cardice"):
@@ -151,6 +152,9 @@ class Configurator(object):
         return all_profiles[profile_name]
 
     def register_node(self, node_spec, node):
-        # TODO: implement me: save the info in a roster compatibel file
+        cluster_name = self.get_active_cluster()
+        roster_file = os.path.join(self.config_folder, cluster_name,
+                                      'salt', 'etc', 'salt', 'roster')
+        # TODO: implement me: save the info in a roster compatible file
         print(node_spec)
         print(vars(node))
