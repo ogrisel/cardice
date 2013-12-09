@@ -4,11 +4,13 @@ from time import time
 from time import sleep
 import os
 from libcloud.compute.providers import get_driver
-from libcloud.compute.base import NodeState
+from libcloud.compute.deployment import SSHKeyDeployment
+from libcloud.compute.types import DeploymentError
+
 from concurrent.futures import ThreadPoolExecutor
 
 
-def create_node(node_spec, timeout=600):
+def create_node(node_spec, timeout=1200):
     # The libcloud driver classes are not thread safe, hence the delayed
     # instanciation
     driver = node_spec['driver_type'](node_spec['key'], node_spec['secret'])
@@ -16,15 +18,18 @@ def create_node(node_spec, timeout=600):
     node_name = node_spec['name']
     config.log.debug('creating node %s on %s',
                      node_name, node_spec['provider'])
-    node = driver.create_node(
+
+    _, ssh_key = config.load_ssh_key()
+    pub_key_content = "%s %s" % (ssh_key.get_name(), ssh_key.get_base64())
+    node = driver.deploy_node(
         name=node_spec['name'],
         image=node_spec['image'],
-        size=node_spec['size'])
+        size=node_spec['size'],
+        deploy=SSHKeyDeployment(pub_key_content),
+        timeout=timeout)
 
     config.log.debug('registering %s at %s', node_name, node.public_ip)
     config.register_node(node_spec, node)
-
-    driver.wait_until_running([node], timeout=timeout)
 
     # TODO: use salt-ssh to deploy the cluster independent states maybe with
     # state.sls in parallel
@@ -33,7 +38,7 @@ def create_node(node_spec, timeout=600):
 class Provisioner(object):
     """Component in charge of provisioning cloud resources for the cluster"""
 
-    def __init__(self, config, max_workers=50):
+    def __init__(self, config, max_workers=500):
         self.config = config
         self.max_workers = max_workers
 
@@ -42,10 +47,10 @@ class Provisioner(object):
         # TODO: use salt-ssh to ping
         return []
 
-    def start(self, profile_name, n_nodes=1, name_prefix="node",
-              refresh_period=20):
+    def start(self, profile_name, n_nodes=1, refresh_period=20):
         """Launch new or restart stopped instances from the cluster."""
         tic = time()
+        cluster_name = self.config.get_active_cluster()
 
         # TODO: detect if there is an existing roster to restart it if the
         # profile supports it
@@ -93,8 +98,11 @@ class Provisioner(object):
             if matching_sizes:
                 size = matching_sizes[0]
             else:
-                raise RuntimeError('could not find size %s on %s'
-                                   % (size_name, provider))
+                size_names = [s.name for s in sizes]
+                raise RuntimeError('could not find size %s on %s:'
+                                   ' available sizes: %s'
+                                   % (size_name, provider,
+                                      ', '.join(size_names)))
         self.config.log.debug("using size %s", size.name)
 
         node_specs = [
@@ -106,7 +114,7 @@ class Provisioner(object):
             'image': image,
             'size': size,
             'config': self.config,
-            'name': "{}{:03d}".format(name_prefix, i)
+            'name': "cardice_{}_{:03d}".format(cluster_name, i)
         } for i in range(n_nodes)]
 
         self.config.log.info('starting %d nodes with profile %s',
@@ -118,7 +126,10 @@ class Provisioner(object):
                 completed = [t for t in tasks if t.done()]
                 for t in completed:
                     # Raise the exception in case of failure
-                    t.result()
+                    try:
+                        t.result()
+                    except DeploymentError as e:
+                        raise e.value
                 self.config.log.info(
                     "waiting for nodes to start (%03d/%03d)...",
                     len(completed), n_nodes)
@@ -129,11 +140,11 @@ class Provisioner(object):
         self.config.log.info('started %d nodes in %d minutes and %d seconds',
             n_nodes, d_min, d_sec)
 
-    def grow(self, profile, n_nodes=1, name_prefix="node", grains=None):
+    def grow(self, profile, n_nodes=1, grains=None):
         """Add new nodes to the current cluster."""
         raise NotImplementedError("grow is not yet implemented")
 
-    def shrink(self, n_nodes=1, name_prefix="node", grains=None):
+    def shrink(self, n_nodes=1, grains=None):
         """Shutdown nodes from current cluster."""
         raise NotImplementedError("shrink is not yet implemented")
 

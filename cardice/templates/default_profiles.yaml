@@ -1,7 +1,7 @@
 ubuntu_rackspace:
     provider: rackspace
-    image: Ubuntu 12.04 LTS
-    size: 256 server
+    image: Ubuntu 12.04 LTS (Precise Pangolin)
+    size: 512MB Standard Instance
 
 ubuntu_aws:
     provider: aws

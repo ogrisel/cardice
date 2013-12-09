@@ -69,9 +69,6 @@ def make_parser():
     start_parser.add_argument(
         "--n-nodes", default=1, type=int,
         help="Number of nodes to start.")
-    start_parser.add_argument(
-        "--name-prefix", default="node",
-        help="Prefix for the new node names.")
 
     stop_parser = subparsers.add_parser(
         'stop', help="Stop the selected cluster configuration.",
@@ -115,8 +112,7 @@ class CommandHandler(object):
     def run_start(self):
         provisioner = Provisioner(self.config)
         provisioner.start(self.options.profile,
-                          n_nodes=self.options.n_nodes,
-                          name_prefix=self.options.name_prefix)
+                          n_nodes=self.options.n_nodes)
 
 
 def main(args=None):

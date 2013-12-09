@@ -4,6 +4,7 @@ import yaml
 import logging
 import shutil
 
+from paramiko import RSAKey
 from cardice import templates
 
 
@@ -104,6 +105,21 @@ class Configurator(object):
                 % (cluster_name, cluster_folder))
         os.makedirs(cluster_folder)
         self.set_default_cluster(cluster_name)
+        self.load_ssh_key()  # trigger ssh key generation
+
+    def load_ssh_key(self, length=2048):
+        cluster_name = self.get_active_cluster()
+        cluster_folder = os.path.join(self.config_folder, cluster_name)
+        filename = cluster_name + "_rsa"
+        filepath = os.path.join(cluster_folder, filename)
+        if os.path.exists(filepath):
+            self.log.debug("loading private key: %s", filepath)
+            k = RSAKey(filename=filepath)
+        else:
+            self.log.debug("generating new private key: %s", filepath)
+            k = RSAKey.generate(length)
+            k.write_private_key_file(filepath)
+        return filepath, k
 
     def get_logger(self, name="cardice"):
         return logging.LoggerAdapter(logging.getLogger(name),
@@ -136,4 +152,5 @@ class Configurator(object):
 
     def register_node(self, node_spec, node):
         # TODO: implement me: save the info in a roster compatibel file
-        pass
+        print(node_spec)
+        print(vars(node))
